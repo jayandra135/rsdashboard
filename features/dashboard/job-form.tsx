@@ -3,14 +3,53 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "react-hot-toast";
+import Select, { type StylesConfig } from "react-select";
 import { z } from "zod";
 
 import type { JobPayload } from "@/services/admin";
 import { createAdminJob, updateAdminJob } from "@/services/admin";
 import { getCategories, getCompanies, getLocations, getSkills } from "@/services/jobs";
 import type { JobSummary } from "@/types/job";
+
+type SelectOption = { value: string; label: string };
+
+const selectStyles: StylesConfig<SelectOption, false> = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: 48,
+    borderRadius: 12,
+    borderColor: state.isFocused ? "#2563eb" : "#e2e8f0",
+    boxShadow: "none",
+    "&:hover": { borderColor: state.isFocused ? "#2563eb" : "#e2e8f0" },
+  }),
+  valueContainer: (base) => ({ ...base, padding: "0 16px" }),
+  placeholder: (base) => ({ ...base, color: "#94a3b8" }),
+  menu: (base) => ({ ...base, borderRadius: 12, overflow: "hidden", zIndex: 20 }),
+};
+
+const statusOptions: SelectOption[] = [
+  { value: "DRAFT", label: "Draft" },
+  { value: "PUBLISHED", label: "Published" },
+  { value: "CLOSED", label: "Closed" },
+  { value: "ARCHIVED", label: "Archived" },
+];
+
+const employmentTypeOptions: SelectOption[] = [
+  { value: "FULL_TIME", label: "Full Time" },
+  { value: "PART_TIME", label: "Part Time" },
+  { value: "CONTRACT", label: "Contract" },
+  { value: "INTERNSHIP", label: "Internship" },
+  { value: "FREELANCE", label: "Freelance" },
+  { value: "TEMPORARY", label: "Temporary" },
+];
+
+const workplaceTypeOptions: SelectOption[] = [
+  { value: "ONSITE", label: "Onsite" },
+  { value: "REMOTE", label: "Remote" },
+  { value: "HYBRID", label: "Hybrid" },
+];
 
 const jobFormSchema = z.object({
   companyId: z.string().uuid(),
@@ -164,6 +203,16 @@ export function JobForm({ job }: { job?: JobSummary }) {
 
   const selectedSkills = form.watch("skillIds");
 
+  const companyOptions: SelectOption[] =
+    companiesQuery.data?.map((company) => ({ value: company.id, label: company.name })) ?? [];
+  const categoryOptions: SelectOption[] =
+    categoriesQuery.data?.map((category) => ({ value: category.id, label: category.name })) ?? [];
+  const locationOptions: SelectOption[] =
+    locationsQuery.data?.map((location) => ({
+      value: location.id,
+      label: [location.city, location.state, location.country].filter(Boolean).join(", "),
+    })) ?? [];
+
   function toggleSkill(skillId: string) {
     const current = form.getValues("skillIds");
     form.setValue(
@@ -180,36 +229,69 @@ export function JobForm({ job }: { job?: JobSummary }) {
       className="card-surface grid gap-6 p-6"
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <select {...form.register("companyId")} className={inputClassName}>
-          <option value="">Select company</option>
-          {companiesQuery.data?.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name}
-            </option>
-          ))}
-        </select>
-        <select {...form.register("categoryId")} className={inputClassName}>
-          <option value="">Select category</option>
-          {categoriesQuery.data?.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-        <select {...form.register("locationId")} className={inputClassName}>
-          <option value="">Select location</option>
-          {locationsQuery.data?.map((location) => (
-            <option key={location.id} value={location.id}>
-              {[location.city, location.state, location.country].filter(Boolean).join(", ")}
-            </option>
-          ))}
-        </select>
-        <select {...form.register("status")} className={inputClassName}>
-          <option value="DRAFT">Draft</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="CLOSED">Closed</option>
-          <option value="ARCHIVED">Archived</option>
-        </select>
+        <Controller
+          control={form.control}
+          name="companyId"
+          render={({ field }) => (
+            <Select
+              inputId="companyId"
+              options={companyOptions}
+              value={companyOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "")}
+              onBlur={field.onBlur}
+              placeholder="Select company"
+              isClearable
+              styles={selectStyles}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="categoryId"
+          render={({ field }) => (
+            <Select
+              inputId="categoryId"
+              options={categoryOptions}
+              value={categoryOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "")}
+              onBlur={field.onBlur}
+              placeholder="Select category"
+              isClearable
+              styles={selectStyles}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="locationId"
+          render={({ field }) => (
+            <Select
+              inputId="locationId"
+              options={locationOptions}
+              value={locationOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "")}
+              onBlur={field.onBlur}
+              placeholder="Select location"
+              isClearable
+              styles={selectStyles}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <Select
+              inputId="status"
+              options={statusOptions}
+              value={statusOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "DRAFT")}
+              onBlur={field.onBlur}
+              placeholder="Select status"
+              styles={selectStyles}
+            />
+          )}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -255,19 +337,36 @@ export function JobForm({ job }: { job?: JobSummary }) {
           placeholder="Max experience"
           className={inputClassName}
         />
-        <select {...form.register("employmentType")} className={inputClassName}>
-          <option value="FULL_TIME">Full Time</option>
-          <option value="PART_TIME">Part Time</option>
-          <option value="CONTRACT">Contract</option>
-          <option value="INTERNSHIP">Internship</option>
-          <option value="FREELANCE">Freelance</option>
-          <option value="TEMPORARY">Temporary</option>
-        </select>
-        <select {...form.register("workplaceType")} className={inputClassName}>
-          <option value="ONSITE">Onsite</option>
-          <option value="REMOTE">Remote</option>
-          <option value="HYBRID">Hybrid</option>
-        </select>
+        <Controller
+          control={form.control}
+          name="employmentType"
+          render={({ field }) => (
+            <Select
+              inputId="employmentType"
+              options={employmentTypeOptions}
+              value={employmentTypeOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "FULL_TIME")}
+              onBlur={field.onBlur}
+              placeholder="Employment type"
+              styles={selectStyles}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="workplaceType"
+          render={({ field }) => (
+            <Select
+              inputId="workplaceType"
+              options={workplaceTypeOptions}
+              value={workplaceTypeOptions.find((option) => option.value === field.value) ?? null}
+              onChange={(option) => field.onChange(option?.value ?? "HYBRID")}
+              onBlur={field.onBlur}
+              placeholder="Workplace type"
+              styles={selectStyles}
+            />
+          )}
+        />
         <input {...form.register("applyUrl")} placeholder="Apply URL" className={inputClassName} />
       </div>
 
